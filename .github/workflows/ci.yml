@@ -43,8 +43,8 @@ jobs:
       - name: Type check
         run: mypy src/ --ignore-missing-imports
 
-      - name: Test
-        run: pytest tests/ -v --cov=src --cov-report=xml
+      - name: Test with coverage threshold
+        run: pytest tests/ -v --cov=src --cov-report=xml --cov-fail-under=80
 
       - name: Upload coverage
         if: matrix.python-version == '3.12'
