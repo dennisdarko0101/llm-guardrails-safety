@@ -38,7 +38,7 @@ from src.policies.presets import (
     get_policies_for_level,
 )
 from src.validation.output_validator import OutputValidator
-from src.validation.pii_detector import PIIDetector
+from src.validation.pii_detector import PIIDetector, PIIEntityType
 from src.validation.pii_redactor import PIIRedactor, RedactionStrategy
 
 router = APIRouter(prefix="/api/v1", tags=["safety"])
@@ -82,6 +82,21 @@ def _get_policy_engine(policy_level: str) -> PolicyEngine:
     """Create a PolicyEngine for the given level."""
     policies = get_policies_for_level(policy_level)
     return PolicyEngine(policies=policies)
+
+
+def _resolve_entity_types(requested: list[str] | None) -> list[str] | None:
+    """Normalize requested PII entity types.
+
+    Returns None ("detect all supported types") when the list is empty, absent,
+    or contains only unrecognized values (e.g. the ``["string"]`` placeholder the
+    Swagger UI auto-fills). A list with at least one valid type filters to the
+    valid subset.
+    """
+    if not requested:
+        return None
+    valid = {t.value for t in PIIEntityType}
+    filtered = [t for t in requested if t in valid]
+    return filtered or None
 
 
 def _record_metric(scan_time: float, action: str) -> None:
@@ -290,7 +305,7 @@ async def detect_pii(req: PIIRequest) -> PIIResponse:
     start = time.time()
     assert _pii_detector is not None
 
-    entity_types = req.entity_types if req.entity_types else None
+    entity_types = _resolve_entity_types(req.entity_types)
     detector = PIIDetector(entity_types=entity_types) if entity_types else _pii_detector
     entities = detector.detect(req.text)
 
@@ -325,7 +340,7 @@ async def redact_pii(req: PIIRequest) -> PIIResponse:
     }
     strategy = strategy_map.get(req.redaction_strategy.value, RedactionStrategy.MASK)
 
-    entity_types = req.entity_types if req.entity_types else None
+    entity_types = _resolve_entity_types(req.entity_types)
     detector = PIIDetector(entity_types=entity_types) if entity_types else _pii_detector
     redactor = PIIRedactor(strategy=strategy, detector=detector)
     result = redactor.redact_auto(req.text)

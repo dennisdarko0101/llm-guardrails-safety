@@ -4,8 +4,11 @@ FROM python:3.12-slim AS builder
 
 WORKDIR /build
 
-COPY pyproject.toml .
-RUN pip install --no-cache-dir --prefix=/install .
+# pyproject sets readme = "README.md" and packages src/, so both are needed to
+# build the project metadata and wheel.
+COPY pyproject.toml README.md ./
+COPY src/ src/
+RUN pip install --no-cache-dir --timeout=300 --retries=10 --prefix=/install .
 
 # Stage 2: Runtime
 FROM python:3.12-slim
@@ -19,11 +22,11 @@ WORKDIR /app
 COPY --from=builder /install /usr/local
 
 # Copy source
-COPY pyproject.toml .
+COPY pyproject.toml README.md ./
 COPY src/ src/
 
 # Install the project itself
-RUN pip install --no-cache-dir --no-deps -e .
+RUN pip install --no-cache-dir --timeout=300 --retries=10 --no-deps -e .
 
 # Switch to non-root user
 USER guardrails

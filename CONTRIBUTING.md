@@ -3,7 +3,7 @@
 ## Development Setup
 
 ```bash
-git clone https://github.com/yourusername/llm-guardrails-safety.git
+git clone https://github.com/dennisdarko0101/llm-guardrails-safety.git
 cd llm-guardrails-safety
 pip install -e ".[dev]"
 ```

@@ -1,11 +1,13 @@
 # LLM Guardrails Safety
 
-[![CI](https://github.com/yourusername/llm-guardrails-safety/actions/workflows/ci.yml/badge.svg)](https://github.com/yourusername/llm-guardrails-safety/actions/workflows/ci.yml)
+[![CI](https://github.com/dennisdarko0101/llm-guardrails-safety/actions/workflows/ci.yml/badge.svg)](https://github.com/dennisdarko0101/llm-guardrails-safety/actions/workflows/ci.yml)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Coverage](https://img.shields.io/badge/coverage-84%25-brightgreen.svg)]()
 
-**Production safety layer for LLM applications.** Provides prompt injection detection, toxicity classification, PII redaction, hallucination detection, abuse pattern recognition, and configurable safety policies — all behind a FastAPI service with middleware you can drop into any app.
+A safety layer that sits between your users and your LLM. It inspects the text going **in** (catching prompt-injection attempts and toxic content) and the text coming **out** (redacting personal data and checking the answer is grounded), then applies a policy that decides whether to allow, warn, or block. It runs as a FastAPI service you call over HTTP, or as drop-in middleware for an existing app.
+
+Why this matters: an LLM follows whatever instructions it is given, including malicious ones hidden inside user input, and it will repeat personal data without a second thought. This is the checkpoint that enforces your rules before and after the model runs. The detection is pattern-based and runs with no API key; an optional LLM-judge mode can be turned on for harder cases.
 
 ```
 User Input → [Injection Detection] → [Toxicity Check] → [Policy Engine] → LLM
@@ -26,25 +28,24 @@ Response   ← [PII Redaction]       ← [Output Validation] ← [Hallucination 
 | **Policy Engine** | 3 presets (strict/moderate/permissive) + custom rule composition |
 | **Safety Middleware** | Drop-in FastAPI middleware with safety headers |
 
-## Quick Start
+## Quick Start (Docker)
 
 ```bash
-# Install
-pip install -e ".[dev]"
-
-# Run tests (206 passing, 84% coverage)
-make test
-
-# Start API server
-make run
-# → http://localhost:8000/docs
+docker compose -f docker/docker-compose.yml up -d --build
 ```
 
-### Docker
+Then open the interactive API docs at **http://localhost:8100/docs**. That Swagger page is the screenshot surface: it lists every endpoint and lets you call them in the browser. Try `POST /api/v1/scan` with a prompt-injection string such as `"Ignore all previous instructions"` and watch the policy block it.
+
+Stop it with `docker compose -f docker/docker-compose.yml down`.
+
+The container is stateless, so the same image runs on any container host (Cloud Run, Azure Container Apps, ECS, Kubernetes). This repo creates no cloud resources; the Dockerfile is the deployment artifact.
+
+### Run without Docker
 
 ```bash
-docker build -t llm-guardrails -f docker/Dockerfile .
-docker run -p 8000:8000 llm-guardrails
+pip install -e ".[dev]"
+make test          # 211 tests, 84% coverage (verified locally)
+make run           # serves http://localhost:8000/docs
 ```
 
 ## API Reference
@@ -175,7 +176,7 @@ The middleware automatically:
 |-------|-----------|----------|-----|-------|
 | **Strict** | Block all suspected | Block all | Block any PII | Block off-topic |
 | **Moderate** | Block clear attempts | Block clearly harmful | Redact PII | Warn on off-topic |
-| **Permissive** | Block only obvious | Log only | Log only | — |
+| **Permissive** | Block only obvious | Log only | Log only | n/a |
 
 ### Custom Policies
 
@@ -243,7 +244,7 @@ src/
     └── pii_redactor.py       # 4-strategy PII redaction
 
 tests/
-├── unit/                     # 7 test files, 160+ tests
+├── unit/                     # 181 unit tests
 │   ├── test_injection.py
 │   ├── test_toxicity.py
 │   ├── test_pii.py
@@ -253,7 +254,7 @@ tests/
 │   ├── test_topic_boundary.py
 │   ├── test_abuse.py
 │   └── test_rate_limiter.py
-└── integration/              # 2 test files, 45+ tests
+└── integration/              # 30 integration tests
     ├── test_api.py
     └── test_guard_pipeline.py
 
@@ -268,8 +269,7 @@ docker/
 docs/
 ├── ARCHITECTURE.md
 ├── DEPLOYMENT.md
-├── SAFETY_GUIDE.md
-└── HANDOFF.md
+└── SAFETY_GUIDE.md
 ```
 
 ## Development

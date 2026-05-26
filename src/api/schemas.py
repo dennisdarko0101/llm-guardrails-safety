@@ -93,7 +93,28 @@ class PIIRequest(BaseModel):
     redaction_strategy: RedactionStrategyEnum = Field(
         RedactionStrategyEnum.MASK, description="Redaction strategy"
     )
-    entity_types: list[str] | None = Field(None, description="Specific PII entity types to detect")
+    entity_types: list[str] | None = Field(
+        None,
+        description=(
+            "Restrict detection to these PII entity types (e.g. ['EMAIL', 'PHONE']). "
+            "Leave empty or omit to detect all supported types."
+        ),
+    )
+
+    # Explicit example so the Swagger "Try it out" body works as-is: it contains
+    # real PII and omits entity_types, which otherwise auto-fills with a ["string"]
+    # placeholder that would restrict detection to a non-existent type (0 matches).
+    model_config = {
+        "json_schema_extra": {
+            "examples": [
+                {
+                    "text": "Call John at 555-123-4567 or john@example.com",
+                    "action": "redact",
+                    "redaction_strategy": "mask",
+                }
+            ]
+        }
+    }
 
 
 class PIIEntityResponse(BaseModel):
